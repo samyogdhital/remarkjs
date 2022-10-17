@@ -5,34 +5,51 @@ import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
 import remarkRehype from "remark-rehype";
 import rehypeStringify from "rehype-stringify";
+import redirect from "remark-redirect";
 
-const testMdFile = "./another.md";
-
-const parseToHtml = async (filePath) => {
-  const readData = await fs.readFileSync(filePath, "utf8");
-  const parsedObject = await unified()
-    .use(remarkParse)
-    .use(remarkFrontmatter)
-    .use(remarkGfm)
-    .use(remarkRehype)
-    .use(rehypeStringify)
-    .process(readData);
-  return String(parsedObject);
+const readdir = (dirname) => {
+  return new Promise((resolve, reject) => {
+    fs.readdir(dirname, (error, filenames) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(filenames);
+      }
+    });
+  });
 };
 
-const createHtmlFile = (lastData) => {
-  fs.writeFileSync(
-    `./htmls/${testMdFile.replace("md", "html")}`,
-    lastData,
-    "utf8"
-  );
+const parseToHtml = async () => {
+  try {
+    fs.mkdirSync("docs");
+  } catch (e) {
+    console.log(e.message);
+  }
+
+  readdir("./files").then(async (files) => {
+    for (let i = 0; i < files.length; i++) {
+      const currentFile = files[i];
+      const extractedMarkdown = await fs.readFileSync(
+        `./files/${currentFile}`,
+        "utf8"
+      );
+      const parsedObject = await unified()
+        .use(remarkParse)
+        .use(redirect)
+        .use(remarkFrontmatter)
+        .use(remarkGfm)
+        .use(remarkRehype)
+        .use(rehypeStringify)
+        .process(extractedMarkdown);
+      const HtmlData = String(parsedObject);
+
+      fs.writeFileSync(
+        `./docs/${currentFile.replace("md", "html")}`,
+        HtmlData,
+        "utf8"
+      );
+    }
+  });
 };
 
-const htmlData = await parseToHtml(testMdFile);
-try {
-  fs.mkdirSync("htmls");
-  createHtmlFile(htmlData);
-} catch (e) {
-  console.log(e.message);
-  createHtmlFile(htmlData);
-}
+parseToHtml();
